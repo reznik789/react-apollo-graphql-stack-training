@@ -6,6 +6,11 @@ import Button from '../../Button';
 import REPOSITORY_FRAGMENT from '../fragments';
 import '../style.css';
 
+const VIEWER_SUBSCRIPTIONS = {
+  SUBSCRIBED: 'SUBSCRIBED',
+  UNSUBSCRIBED: 'UNSUBSCRIBED'
+};
+
 const STAR_REPOSITORY = gql`
   mutation($id: ID!) {
     addStar(input: { starrableId: $id }) {
@@ -83,6 +88,44 @@ const updateRemoveStar = (client, result) => {
   });
 };
 
+const updateWatchers = (client, result) => {
+  const {
+    data: {
+      updateSubscription: {
+        subscribable: { id, viewerSubscription }
+      }
+    }
+  } = result;
+  const repository = client.readFragment({
+    id: `Repository:${id}`,
+    fragment: REPOSITORY_FRAGMENT
+  });
+  const newWatchersCount =
+    repository.watchers.totalCount + (viewerSubscription === VIEWER_SUBSCRIPTIONS.SUBSCRIBED ? 1 : -1);
+  client.writeFragment({
+    id: `Repository:${id}`,
+    fragment: REPOSITORY_FRAGMENT,
+    data: {
+      ...repository,
+      watchers: {
+        ...repository.watchers,
+        totalCount: newWatchersCount
+      }
+    }
+  });
+};
+
+const subscriptionOptimisticResponse = (id, status) => ({
+  updateSubscription: {
+    __typename: 'Mutation',
+    subscribable: {
+      __typename: 'Repository',
+      id: id,
+      viewerSubscription: status
+    }
+  }
+});
+
 const RepositoryItem = ({
   id,
   name,
@@ -95,13 +138,43 @@ const RepositoryItem = ({
   viewerSubscription,
   viewerHasStarred
 }) => {
-  const [addStar] = useMutation(STAR_REPOSITORY, { variables: { id }, update: updateAddStar });
-  const [removeStar] = useMutation(UNSTAR_REPOSITORY, { variables: { id }, update: updateRemoveStar });
-  const [subscribe] = useMutation(UPDATE_SUBSCRIPTION, {
-    variables: { id, newState: 'SUBSCRIBED' }
+  const [addStar] = useMutation(STAR_REPOSITORY, {
+    variables: { id },
+    update: updateAddStar,
+    optimisticResponse: {
+      addStar: {
+        __typename: 'Mutation',
+        starrable: {
+          __typename: 'Repository',
+          id: id,
+          viewerHasStarred: true
+        }
+      }
+    }
   });
-  const [unsubscribe, { unsubscribeData }] = useMutation(UPDATE_SUBSCRIPTION, {
-    variables: { id, newState: 'UNSUBSCRIBED' }
+  const [removeStar] = useMutation(UNSTAR_REPOSITORY, {
+    variables: { id },
+    update: updateRemoveStar,
+    optimisticResponse: {
+      removeStar: {
+        __typename: 'Mutation',
+        starrable: {
+          __typename: 'Repository',
+          id: id,
+          viewerHasStarred: false
+        }
+      }
+    }
+  });
+  const [subscribe] = useMutation(UPDATE_SUBSCRIPTION, {
+    variables: { id, newState: VIEWER_SUBSCRIPTIONS.SUBSCRIBED },
+    update: updateWatchers,
+    optimisticResponse: subscriptionOptimisticResponse(id, VIEWER_SUBSCRIPTIONS.SUBSCRIBED)
+  });
+  const [unsubscribe] = useMutation(UPDATE_SUBSCRIPTION, {
+    variables: { id, newState: VIEWER_SUBSCRIPTIONS.UNSUBSCRIBED },
+    update: updateWatchers,
+    optimisticResponse: subscriptionOptimisticResponse(id, VIEWER_SUBSCRIPTIONS.UNSUBSCRIBED)
   });
   return (
     <div>
@@ -119,13 +192,13 @@ const RepositoryItem = ({
           </Button>
         )}
       </div>
-      {viewerSubscription === 'SUBSCRIBED' ? (
+      {viewerSubscription === VIEWER_SUBSCRIPTIONS.SUBSCRIBED ? (
         <Button className="RepositoryItem-title-action" onClick={unsubscribe}>
-          UNSUBSRIBE
+          {watchers.totalCount} UNSUBSCRIBE
         </Button>
       ) : (
         <Button className="RepositoryItem-title-action" onClick={subscribe}>
-          SUBSCRIBE
+          {watchers.totalCount} SUBSCRIBE
         </Button>
       )}
       <div className="RepositoryItem-description">
