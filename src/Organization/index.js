@@ -24,17 +24,25 @@ const GET_REPOSITORIES_OF_ORGANIZATION = gql`
 `;
 const Organization = ({ organizationName }) => {
   const { data, error, loading, fetchMore } = useQuery(GET_REPOSITORIES_OF_ORGANIZATION, {
-    variables: { organization: organizationName },
+    variables: { organizationName: organizationName },
     notifyOnNetworkStatusChange: true,
     skip: organizationName === ''
   });
+
   if (error) {
     return <ErrorMessage error={error} />;
   }
-  const { organization } = data;
+  const { organization } = data || {};
   if (loading && !organization) {
     return <Loading />;
   }
-  return <RepositoryList loading={loading} repositories={organization.repositories} fetchMore={fetchMore} />;
+  return (
+    <RepositoryList
+      loading={loading}
+      repositories={organization.repositories}
+      entry={'organization'}
+      fetchMore={fetchMore}
+    />
+  );
 };
 export default Organization;

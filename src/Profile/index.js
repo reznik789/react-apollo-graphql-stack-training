@@ -34,7 +34,7 @@ const Profile = () => {
   const { viewer } = data || {};
   if (loading && !viewer) return <Loading />;
 
-  return <RepositoryList loading={loading} repositories={viewer.repositories} fetchMore={fetchMore} />;
+  return <RepositoryList loading={loading} repositories={viewer.repositories} entry={'viewer'} fetchMore={fetchMore} />;
 };
 
 export default Profile;

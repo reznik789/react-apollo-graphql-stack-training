@@ -1,34 +1,24 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import RepositoryItem from '../RepositoryItem';
 import FetchMore from '../../FetchMore';
 import '../style.css';
 
-const updateQuery = (previousResult, { fetchMoreResult }) => {
+const getUpdateQuery = entry => (previousResult, { fetchMoreResult }) => {
   if (!fetchMoreResult) return previousResult;
   return {
     ...previousResult,
-    viewer: {
-      ...previousResult.viewer,
+    [entry]: {
+      ...previousResult[entry],
       repositories: {
-        ...previousResult.viewer.repositories,
-        ...fetchMoreResult.viewer.repositories,
-        edges: [...previousResult.viewer.repositories.edges, ...fetchMoreResult.viewer.repositories.edges]
+        ...previousResult[entry].repositories,
+        ...fetchMoreResult[entry].repositories,
+        edges: [...previousResult[entry].repositories.edges, ...fetchMoreResult[entry].repositories.edges]
       }
     }
   };
 };
 
-const RepositoryList = ({ repositories, fetchMore, loading }) => {
-  const onMoreClick = useCallback(
-    () =>
-      fetchMore({
-        variables: {
-          cursor: repositories.pageInfo.endCursor
-        },
-        updateQuery
-      }),
-    [fetchMore]
-  );
+const RepositoryList = ({ repositories, fetchMore, loading, entry }) => {
   return (
     <>
       {repositories.edges.map(({ node }) => (
@@ -42,7 +32,7 @@ const RepositoryList = ({ repositories, fetchMore, loading }) => {
         variables={{
           cursor: repositories.pageInfo.endCursor
         }}
-        updateQuery={updateQuery}
+        updateQuery={getUpdateQuery(entry)}
         fetchMore={fetchMore}
       >
         Repositories

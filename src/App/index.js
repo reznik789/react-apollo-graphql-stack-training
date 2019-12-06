@@ -1,16 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Route } from 'react-router-dom';
 import Navigation from './Navigation';
 import Profile from '../Profile';
 import Organization from '../Organization';
+import { OrganizationSearchContext } from './OrganizationSearchContext';
 import * as routes from '../constants/routes';
 import './style.css';
-
-const WrappedOrganization = () => (
-  <div className="App-content_large-header">
-    <Organization />
-  </div>
-);
 
 const WrappedProfile = () => (
   <div className="App-content_small-header">
@@ -19,15 +14,32 @@ const WrappedProfile = () => (
 );
 
 const App = () => {
+  const [organizationName, setOrganizationName] = useState('the-road-to-learn-react');
   return (
-    <Router>
-      <div className="App">
-        <div className="App-main">
-          <Route exact path={routes.ORGANIZATION} component={WrappedOrganization} />
-          <Route exact path={routes.PROFILE} component={WrappedProfile} />
+    <OrganizationSearchContext.Provider
+      value={{
+        organizationName,
+        onOrganizationSearch: setOrganizationName
+      }}
+    >
+      <Router>
+        <div className="App">
+          <Navigation />
+          <div className="App-main">
+            <Route
+              exact
+              path={routes.ORGANIZATION}
+              render={() => (
+                <div className="App-content_large-header">
+                  <Organization organizationName={organizationName} />
+                </div>
+              )}
+            />
+            <Route exact path={routes.PROFILE} component={WrappedProfile} />
+          </div>
         </div>
-      </div>
-    </Router>
+      </Router>
+    </OrganizationSearchContext.Provider>
   );
 };
 
