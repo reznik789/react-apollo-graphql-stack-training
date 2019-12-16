@@ -3,7 +3,7 @@ import Loading from '../Loading';
 import { ButtonUnobtrusive } from '../Button';
 import './style.css';
 const FetchMore = ({ variables, updateQuery, fetchMore, children, loading, hasNextPage }) => {
-  const onFetchMore = useCallback(() => fetchMore({ variables, updateQuery }), [variables, updateQuery]);
+  const onFetchMore = useCallback(() => fetchMore({ variables, updateQuery }), [variables, updateQuery, fetchMore]);
   return (
     <div className="FetchMore">
       {loading ? (
