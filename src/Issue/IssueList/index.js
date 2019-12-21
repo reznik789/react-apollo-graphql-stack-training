@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import gql from 'graphql-tag';
 import memoize from 'fast-memoize';
-import { useQuery } from 'react-apollo';
+import { useQuery, ApolloConsumer } from 'react-apollo';
 import IssueItem from '../IssueItem';
 import Loading from '../../Loading';
 import ErrorMessage from '../../Error';
@@ -29,9 +29,9 @@ const TRANSITION_STATE = {
 const isShow = issueState => issueState !== ISSUE_STATES.NONE;
 
 const GET_ISSUES_OF_REPOSITORY = gql`
-  query($repositoryName: String!, $repositoryOwner: String!) {
+  query($repositoryName: String!, $repositoryOwner: String!, $issueState: IssueState!) {
     repository(name: $repositoryName, owner: $repositoryOwner) {
-      issues(first: 5) {
+      issues(first: 5, filterBy: { states: [$issueState] }) {
         edges {
           node {
             id
@@ -56,12 +56,43 @@ const IssueList = ({ issues }) => (
   </div>
 );
 
+const prefetchIssues = (client, issueState, repositoryName, repositoryOwner) => {
+  const nextIssueState = TRANSITION_STATE[issueState];
+  isShow(nextIssueState) &&
+    client.query({
+      query: GET_ISSUES_OF_REPOSITORY,
+      variables: {
+        repositoryName,
+        repositoryOwner,
+        issueState: nextIssueState
+      }
+    });
+};
+
+const IssueFilter = ({ issueState, repositoryName, repositoryOwner, onChangeIssueState }) => {
+  return (
+    <ApolloConsumer>
+      {client => (
+        <ButtonUnobtrusive
+          onClick={onChangeIssueState(TRANSITION_STATE[issueState])}
+          onMouseOver={() => {
+            prefetchIssues(client, issueState, repositoryName, repositoryOwner);
+          }}
+        >
+          {TRANSITION_LABELS[issueState]}
+        </ButtonUnobtrusive>
+      )}
+    </ApolloConsumer>
+  );
+};
+
 const Issues = ({ repositoryOwner, repositoryName }) => {
   const [issueState, setIssueState] = useState(ISSUE_STATES.NONE);
-  const { data, loading, error, fetchMore } = useQuery(GET_ISSUES_OF_REPOSITORY, {
+  const { data, loading, error } = useQuery(GET_ISSUES_OF_REPOSITORY, {
     variables: {
       repositoryName,
-      repositoryOwner
+      repositoryOwner,
+      issueState
     },
     skip: !isShow(issueState)
   });
@@ -72,26 +103,22 @@ const Issues = ({ repositoryOwner, repositoryName }) => {
   );
   const { issues } = (data || {}).repository || {};
 
-  const filteredIssues = useMemo(() => {
-    if (!issues || !issues.edges) return {};
-    return {
-      edges: issues.edges.filter(issue => issue.node.state === issueState)
-    };
-  }, [issues, issueState]);
-
   if (error) return <ErrorMessage error={error} />;
 
   if (loading && !issues) return <Loading />;
 
   return (
     <div className="Issues">
-      <ButtonUnobtrusive onClick={onChangeIssueState(TRANSITION_STATE[issueState])}>
-        {TRANSITION_LABELS[issueState]}
-      </ButtonUnobtrusive>
-      {!issues ? null : !filteredIssues.edges.length ? (
+      <IssueFilter
+        issueState={issueState}
+        repositoryOwner={repositoryOwner}
+        repositoryName={repositoryName}
+        onChangeIssueState={onChangeIssueState}
+      />
+      {!issues ? null : !issues.edges.length ? (
         <div className="IssueList">No issues ...</div>
       ) : (
-        <IssueList issues={filteredIssues} />
+        <IssueList issues={issues} />
       )}
     </div>
   );
