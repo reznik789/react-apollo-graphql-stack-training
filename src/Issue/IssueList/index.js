@@ -69,7 +69,7 @@ const updateQuery = (oldResult, { fetchMoreResult }) => {
 const IssueList = ({ issues, loading, fetchMore, issueState, repositoryName, repositoryOwner }) => (
   <div className="IssueList">
     {issues.edges.map(({ node }) => (
-      <IssueItem key={node.id} issue={node} />
+      <IssueItem key={node.id} issue={node} repositoryName={repositoryName} repositoryOwner={repositoryOwner} />
     ))}
     <FetchMore
       fetchMore={fetchMore}
@@ -129,7 +129,10 @@ const Issues = ({ repositoryOwner, repositoryName }) => {
     skip: !isShow(issueState)
   });
 
-  const onChangeIssueState = useCallback(memoize(newState => () => setIssueState(newState)), []);
+  const onChangeIssueState = useCallback(
+    memoize(newState => () => setIssueState(newState)),
+    []
+  );
   const { issues } = (data || {}).repository || {};
 
   if (error) return <ErrorMessage error={error} />;
